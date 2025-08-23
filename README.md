@@ -1,3 +1,5 @@
+**DEMO VIDEO** : https://drive.google.com/file/d/1eU-AhCHBdIeSlWuYTLFmEuMyCV7W_3Jp/view
+
 **🚀 RAG Project with Next.js, Clerk, and Qdrant**
 
 A Retrieval-Augmented Generation (RAG) application built with Next.js.
