@@ -1,4 +1,4 @@
-**DEMO VIDEO** : https://drive.google.com/file/d/1eU-AhCHBdIeSlWuYTLFmEuMyCV7W_3Jp/view
+**DEMO VIDEO** : https://drive.google.com/file/d/1rM6Tj4GO5ixNOHj6lo17SZAzT72Dot9n/view?usp=sharing
 
 **🚀 RAG Project with Next.js, Clerk, and Qdrant**
 
