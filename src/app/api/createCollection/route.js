@@ -41,6 +41,7 @@ export async function POST(req) {
         // 4. Initialize Qdrant client
         const client = new QdrantClient({
             url: process.env.QDRANT_URL,
+            apiKey: process.env.QDRANT_API_KEY,
         });
 
         // 5. Create the new collection in Qdrant
