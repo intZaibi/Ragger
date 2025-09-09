@@ -3,6 +3,7 @@ import "./globals.css";
 import { ClerkProvider } from '@clerk/nextjs'
 import { ThemeProvider } from "@/components/theme-provider";
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -32,6 +33,7 @@ export default function RootLayout({ children }) {
                   <main className="flex-grow">
                     {children}
                   </main>
+                  <Footer />
                 </div>
               </ThemeProvider>
             </body>
