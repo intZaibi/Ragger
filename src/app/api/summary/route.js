@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OpenAIEmbeddings } from "@langchain/openai";
 import { QdrantVectorStore } from "@langchain/qdrant";
-import { TaskType, GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 
 /**
  * Handles POST requests to /api/summary
@@ -21,11 +21,10 @@ export async function POST(req) {
     }
 
     try {
-        // 1. Find the relevant document in Qdrant
-        const embeddings = new GoogleGenerativeAIEmbeddings({
-            apiKey: process.env.GOOGLE_API_KEY,
-            model: "text-embedding-004",
-            taskType: TaskType.RETRIEVAL_QUERY,
+        // 1. Find the relevant document in Qdrant using OpenAI embeddings
+        const embeddings = new OpenAIEmbeddings({
+            apiKey: process.env.OPENAI_API_KEY,
+            model: "text-embedding-3-large",
         });
 
         const vectorStore = await QdrantVectorStore.fromExistingCollection(
@@ -71,20 +70,14 @@ TEXT TO SUMMARIZE:
 ${retrievedContent}
 `;
 
-        // 3. Call Gemini using the native Google Generative AI SDK
-        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash", 
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
+        // 3. Call OpenAI to generate the summary
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [{ role: "user", content: SYSTEM_PROMPT }],
+            response_format: { type: "json_object" },
         });
-
-        // FIX: The generateContent method expects the prompt as a direct string,
-        // not a complex object with 'contents' or 'roles'.
-        const generationResult = await model.generateContent(SYSTEM_PROMPT);
-        const response = await generationResult.response;
-        const summaryText = response.text();
+        const summaryText = completion.choices[0].message.content;
 
         // 4. Return the summary
         // The model returns a string, so we need to parse it to send valid JSON.

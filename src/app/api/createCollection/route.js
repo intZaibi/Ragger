@@ -48,7 +48,7 @@ export async function POST(req) {
         console.log(`Creating collection: ${collectionName}`);
         await client.createCollection(collectionName, {
             vectors: {
-                size: 768, // Vector size for Google's text-embedding-004
+                size: 3072, // Vector size for OpenAI's text-embedding-3-large
                 distance: "Cosine",
             },
         });

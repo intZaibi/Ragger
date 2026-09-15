@@ -1,19 +1,25 @@
 import "dotenv/config";
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
-import { TaskType } from "@google/generative-ai";
+import { OpenAIEmbeddings } from "@langchain/openai";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import OpenAI from "openai";
-// const client = new OpenAI();
+import { auth, clerkClient } from "@clerk/nextjs/server";
+
+const DEFAULT_CREDITS = 3;
 
 /**
  * Handles POST requests to /api/chat
- * Expects a JSON body with a "userQuery" property.
- * This endpoint retrieves relevant context from Qdrant and generates
- * a response using a Gemini model.
+ * Expects a JSON body with a "userQuery" and "collectionName" property.
+ * Checks the user's remaining credits before processing and decrements on success.
  */
 export async function POST(req) {
-  // 1. Extract the user's query from the request body
+  // 1. Authenticate the user
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // 2. Extract the user's query from the request body
   const { userQuery, collectionName } = await req.json();
 
   if (!userQuery) {
@@ -24,32 +30,46 @@ export async function POST(req) {
   }
 
   try {
-    // 2. Initialize Gemini embeddings for retrieving the user's query.
-    // The model and task type are aligned with your indexing setup for accurate results.
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: process.env.GOOGLE_API_KEY, // Using the same API key as your indexing
-      model: "text-embedding-004", // Matching the model from your indexing route
-      taskType: TaskType.RETRIEVAL_QUERY, // Use RETRIEVAL_QUERY for user queries
+    // 3. Check the user's credits via Clerk privateMetadata
+    const clerk = await clerkClient();
+    const user = await clerk.users.getUser(userId);
+    const currentCredits = user.privateMetadata?.credits ?? DEFAULT_CREDITS;
+
+    if (currentCredits <= 0) {
+      return NextResponse.json(
+        {
+          error: "You have used all your free messages. Upgrade to continue.",
+          creditsRemaining: 0,
+        },
+        { status: 402 }
+      );
+    }
+
+    // 4. Initialize OpenAI embeddings for retrieving the user's query.
+    // The model must match the one used during indexing for accurate vector search.
+    const embeddings = new OpenAIEmbeddings({
+      apiKey: process.env.OPENAI_API_KEY,
+      model: "text-embedding-3-large", // Must match the indexing route
     });
 
-    // 3. Connect to the existing Qdrant vector store
+    // 5. Connect to the existing Qdrant vector store
     const vectorStore = await QdrantVectorStore.fromExistingCollection(
       embeddings,
       {
         url: process.env.QDRANT_URL,
         apiKey: process.env.QDRANT_API_KEY,
-        collectionName: collectionName, // Matching the collection name from your indexing route
+        collectionName: collectionName,
       }
     );
 
-    // 4. Create a retriever to search for the top 3 most relevant documents
+    // 6. Create a retriever to search for the top 3 most relevant documents
     const retriever = vectorStore.asRetriever({ k: 3 });
 
-    // 5. Retrieve the relevant chunks (documents) from Qdrant
+    // 7. Retrieve the relevant chunks (documents) from Qdrant
     const relevantChunks = await retriever.invoke(userQuery);
     console.log("Relevant Chunks", relevantChunks);
-    
-    // 6. Construct a clear system prompt with the retrieved context
+
+    // 8. Construct a clear system prompt with the retrieved context
    const SYSTEM_PROMPT = `
 ROLE & CORE INSTRUCTION:
 You are a retrieval-based AI assistant. Your sole purpose is to answer the user's query using only the information provided in the context below. 
@@ -153,26 +173,13 @@ Please now answer the user's query based on the context provided at the beginnin
 Remember: STRICT JSON, NO HALLUCINATION, CONTEXT ONLY.
 `;
 
-
+    // 9. Generate a response using the OpenAI chat model
     const openai = new OpenAI({
-      apiKey: process.env.GOOGLE_API_KEY,
-      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+      apiKey: process.env.OPENAI_API_KEY,
     });
 
-    //  const messages = [
-    //   { role: "system", content: SYSTEM_PROMPT },
-    //   { role: "user", content: userQuery },
-    // ];
-
-    // const response = await client.chat.completions.create({
-    //   model: "gpt-4o",
-    //   messages,
-    //   // temperature: 0.2,
-    // });
-
-    // 8. Generate a response using the chat model
     const response = await openai.chat.completions.create({
-      model: "gemini-2.0-flash",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userQuery },
@@ -180,11 +187,20 @@ Remember: STRICT JSON, NO HALLUCINATION, CONTEXT ONLY.
       response_format: { type: "json_object" },
     });
     console.log(JSON.stringify(response));
-    
-    // 9. Return the AI's response and the sources that were used
+
+    // 10. Decrement the user's credits after a successful response
+    const newCredits = currentCredits - 1;
+    await clerk.users.updateUserMetadata(userId, {
+      privateMetadata: {
+        credits: newCredits,
+      },
+    });
+
+    // 11. Return the AI's response, sources, and remaining credits
     return NextResponse.json({
       response: response.choices[0].message.content,
       sources: relevantChunks,
+      creditsRemaining: newCredits,
     });
   } catch (error) {
     console.error("Error during chat processing:", error);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Paperclip,
   Send,
@@ -14,6 +14,8 @@ import {
   ArrowRight,
   Bot,
   User,
+  Zap,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +24,8 @@ import { Toaster, toast } from "sonner";
 
 import AddSourceModal from "./AddSourceModal";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+
+const MAX_CREDITS = 3;
 
 export default function PlaygroundPage() {
   const [collectionName, setCollectionName] = useState("");
@@ -32,21 +36,44 @@ export default function PlaygroundPage() {
   const [userInput, setUserInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
-  const [toastMessage, setToastMessage] = useState(null);
   const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
   const [sources, setSources] = useState([]);
-
   const [summary, setSummary] = useState("");
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
+  // Credits state
+  const [credits, setCredits] = useState(null); // null = loading
+  const [isCreditsLoading, setIsCreditsLoading] = useState(true);
+
   const chatWindowRef = useRef(null);
 
+  // Fetch credits on mount
   useEffect(() => {
-  if (chatWindowRef.current) {
-    chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-  }
-}, [chatHistory]);
+    const fetchCredits = async () => {
+      setIsCreditsLoading(true);
+      try {
+        const res = await fetch("/api/credits");
+        if (res.ok) {
+          const data = await res.json();
+          setCredits(data.credits);
+        }
+      } catch (err) {
+        console.error("Failed to fetch credits:", err);
+      } finally {
+        setIsCreditsLoading(false);
+      }
+    };
+    fetchCredits();
+  }, []);
 
+  // Auto-scroll chat
+  useEffect(() => {
+    if (chatWindowRef.current) {
+      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+    }
+  }, [chatHistory]);
+
+  // Fetch summary when a source is selected
   useEffect(() => {
     if (ragData.length === 0) {
       setSummary("");
@@ -67,7 +94,6 @@ export default function PlaygroundPage() {
       } catch (error) {
         console.error("Summary Error:", error);
         toast.error(error.message || "Failed to fetch summary.");
-
         setSummary("⚠️ Failed to fetch summary.");
       } finally {
         setIsSummaryLoading(false);
@@ -77,8 +103,10 @@ export default function PlaygroundPage() {
     fetchSummary();
   }, [ragData]);
 
+  const isOutOfCredits = credits !== null && credits <= 0;
+
   const handleSendMessage = async () => {
-    if (!userInput.trim() || isLoading) return;
+    if (!userInput.trim() || isLoading || isOutOfCredits) return;
 
     const userMessage = {
       id: crypto.randomUUID(),
@@ -101,8 +129,29 @@ export default function PlaygroundPage() {
       });
 
       const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.error || "Failed to get response.");
+
+      // Handle out-of-credits (402)
+      if (response.status === 402) {
+        setCredits(0);
+        toast.error("You've used all your free messages!");
+        setChatHistory((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            sender: "bot",
+            text: "🔒 You've used all your free messages. Please upgrade to continue chatting.",
+            timestamp: new Date(),
+          },
+        ]);
+        return;
+      }
+
+      if (!response.ok) throw new Error(result.error || "Failed to get response.");
+
+      // Update credits from response
+      if (typeof result.creditsRemaining === "number") {
+        setCredits(result.creditsRemaining);
+      }
 
       const parsed = JSON.parse(result.response);
       const botResponse = {
@@ -117,7 +166,6 @@ export default function PlaygroundPage() {
     } catch (error) {
       console.error("Chat Error:", error);
       toast.error(error.message || "Failed to get chat response.");
-
       setChatHistory((prev) => [
         ...prev,
         {
@@ -168,7 +216,6 @@ export default function PlaygroundPage() {
 
       setCollectionName(result.collectionName);
       toast.success(`Collection "${result.collectionName}" created!`);
-
     } catch (error) {
       console.error("Error creating collection:", error);
       toast.error(error.message);
@@ -195,22 +242,51 @@ export default function PlaygroundPage() {
 
   const handleClearSources = async () => {
     try {
-      // You would also call your clearIndex API here if needed
       setSources([]);
-      // Optionally reset the collection name to allow creating a new one
       setCollectionName("");
       setBookName("");
       toast.info("Sources and collection cleared.");
-
     } catch (error) {
       console.error("Error clearing sources:", error);
       toast.error("Failed to clear sources.");
     }
   };
+
+  // Credit badge component
+  const CreditBadge = () => {
+    if (isCreditsLoading || credits === null) {
+      return (
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700">
+          <Loader className="w-3 h-3 animate-spin" />
+          <span>Loading...</span>
+        </div>
+      );
+    }
+
+    if (isOutOfCredits) {
+      return (
+        <div className="flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-1.5 rounded-full border border-red-200 dark:border-red-800">
+          <Lock className="w-3 h-3" />
+          <span>No messages left</span>
+        </div>
+      );
+    }
+
+    const color =
+      credits === 1
+        ? "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800"
+        : "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800";
+
+    return (
+      <div className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border ${color}`}>
+        <Zap className="w-3 h-3" />
+        <span>{credits} / {MAX_CREDITS} messages left</span>
+      </div>
+    );
+  };
+
   return (
     <>
-
-    
       <Toaster richColors position="bottom-right" />
 
       <AddSourceModal
@@ -220,13 +296,12 @@ export default function PlaygroundPage() {
         setLoadingMessage={setLoadingMessage}
         setIsSourceModalOpen={setIsSourceModalOpen}
         onAddSource={handleAddSource}
-        onRemoveSource={handleRemoveSource} // Pass the remove handler
+        onRemoveSource={handleRemoveSource}
         collectionName={collectionName}
       />
 
-
       <SignedOut>
-        <div className="flex flex-col   bg-white dark:bg-gray-900 text-black dark:text-white items-center justify-center h-screen">
+        <div className="flex flex-col bg-white dark:bg-gray-900 text-black dark:text-white items-center justify-center h-screen">
           <h1 className="text-2xl font-bold mb-4">Welcome to the Playground</h1>
           <p className="mb-6">Please sign in to continue.</p>
           <SignInButton mode="modal">
@@ -234,6 +309,7 @@ export default function PlaygroundPage() {
           </SignInButton>
         </div>
       </SignedOut>
+
       <SignedIn>
         {!collectionName ? (
           <div className="max-w-md mx-auto mt-10 p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md dark:shadow-gray-800/20 bg-white dark:bg-gray-900">
@@ -255,18 +331,12 @@ export default function PlaygroundPage() {
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white dark:bg-indigo-700 dark:hover:bg-indigo-600"
                 disabled={isCollectionLoading}
               >
-                {isCollectionLoading ? (
-                  <Loader className="animate-spin" />
-                ) : (
-                  "Create Collection"
-                )}
+                {isCollectionLoading ? <Loader className="animate-spin" /> : "Create Collection"}
               </Button>
             </form>
           </div>
-        ) :
-
-
-          (<div className="grid grid-cols-12 h-[calc(100vh-4rem)] bg-white dark:bg-gray-900 text-black dark:text-white">
+        ) : (
+          <div className="grid grid-cols-12 h-[calc(100vh-4rem)] bg-white dark:bg-gray-900 text-black dark:text-white">
             {/* Left Panel: Sources */}
             <aside className="col-span-3 border-r border-gray-200 dark:border-gray-800 flex flex-col p-4">
               <Button
@@ -288,8 +358,9 @@ export default function PlaygroundPage() {
                       <li
                         onClick={() => !source.loading && setRagData([source])}
                         key={idx}
-                        className={`bg-gray-50 dark:bg-gray-800 p-3 rounded-lg flex items-center gap-3 border border-gray-200 dark:border-gray-700 transition-all ${source.loading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-indigo-500'
-                          }`}
+                        className={`bg-gray-50 dark:bg-gray-800 p-3 rounded-lg flex items-center gap-3 border border-gray-200 dark:border-gray-700 transition-all ${
+                          source.loading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-indigo-500"
+                        }`}
                       >
                         <SourceIcon type={source.type} />
                         <div className="flex-1 overflow-hidden">
@@ -329,23 +400,35 @@ export default function PlaygroundPage() {
                   {summary}
                 </div>
               ) : (
-                <p className="text-gray-500">
-                  Select a source to generate an AI summary.
-                </p>
+                <p className="text-gray-500">Select a source to generate an AI summary.</p>
               )}
             </section>
 
             {/* Right Panel: Chat */}
             <main className="col-span-5 flex flex-col">
-              <div ref={chatWindowRef}   style={{ maxHeight: 'calc(100vh - 120px)' }}  className="flex-grow overflow-y-auto p-6 space-y-6">
+              {/* Credit badge header */}
+              <div className="flex items-center justify-end px-6 py-2 border-b border-gray-200 dark:border-gray-800">
+                <CreditBadge />
+              </div>
+
+              <div
+                ref={chatWindowRef}
+                style={{ maxHeight: "calc(100vh - 160px)" }}
+                className="flex-grow overflow-y-auto p-6 space-y-6"
+              >
                 {chatHistory.length === 0 && (
                   <div className="text-center text-gray-500 mt-20">
                     <h2 className="text-2xl font-bold">Chat with AI</h2>
                     <p className="mt-2">Ask questions about your sources after reviewing the summary.</p>
+                    {!isCreditsLoading && credits !== null && (
+                      <p className="mt-3 text-sm text-indigo-500 dark:text-indigo-400">
+                        You have <span className="font-semibold">{credits}</span> free message{credits !== 1 ? "s" : ""} remaining.
+                      </p>
+                    )}
                   </div>
                 )}
                 {chatHistory.map((msg) => (
-                  <div key={msg.id} className={`flex gap-3 ${msg.sender === "user" ? "justify-end" : "justify-start"} `}>
+                  <div key={msg.id} className={`flex gap-3 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
                     {msg.sender === "bot" && (
                       <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
                         <Bot className="w-5 h-5 text-gray-700 dark:text-gray-300" />
@@ -369,6 +452,24 @@ export default function PlaygroundPage() {
                   </div>
                 )}
               </div>
+
+              {/* Out-of-credits banner */}
+              {isOutOfCredits && (
+                <div className="mx-4 mb-2 p-4 rounded-xl bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-800 flex items-center gap-3">
+                  <div className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-red-100 dark:bg-red-900/40">
+                    <Lock className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-300">You've used all {MAX_CREDITS} free messages</p>
+                    <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-0.5">Upgrade your plan to continue chatting with your data.</p>
+                  </div>
+                  <Button size="sm" className="flex-shrink-0 bg-red-600 hover:bg-red-700 text-white text-xs">
+                    Upgrade
+                  </Button>
+                </div>
+              )}
+
+              {/* Chat input */}
               <div className="p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
                 <div className="relative max-w-3xl mx-auto flex items-center">
                   <Textarea
@@ -380,18 +481,29 @@ export default function PlaygroundPage() {
                         handleSendMessage();
                       }
                     }}
-                    className="w-full p-4 pr-14 rounded-xl resize-none bg-gray-50 dark:bg-gray-800 text-sm"
-                    placeholder="Ask a question..."
+                    disabled={isOutOfCredits || isLoading}
+                    className={`w-full p-4 pr-14 rounded-xl resize-none text-sm ${
+                      isOutOfCredits
+                        ? "bg-gray-100 dark:bg-gray-800/50 text-gray-400 cursor-not-allowed"
+                        : "bg-gray-50 dark:bg-gray-800"
+                    }`}
+                    placeholder={isOutOfCredits ? "No messages remaining — upgrade to continue" : "Ask a question..."}
                     rows={1}
                   />
-                  <Button onClick={handleSendMessage} className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 p-0 bg-indigo-600 hover:bg-indigo-700" disabled={!userInput.trim() || isLoading}>
+                  <Button
+                    onClick={handleSendMessage}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 p-0 ${
+                      isOutOfCredits ? "bg-gray-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
+                    }`}
+                    disabled={!userInput.trim() || isLoading || isOutOfCredits}
+                  >
                     <ArrowRight className="w-5 h-5" />
                   </Button>
                 </div>
               </div>
             </main>
           </div>
-          )}
+        )}
       </SignedIn>
     </>
   );

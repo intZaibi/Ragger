@@ -1,8 +1,6 @@
 import "dotenv/config";
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import { TaskType } from "@google/generative-ai";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { CSVLoader } from "@langchain/community/document_loaders/fs/csv";
@@ -144,10 +142,9 @@ export async function POST(req) {
             return NextResponse.json({ error: "No documents to insert" }, { status: 400 });
         }
 
-        const embeddings = new GoogleGenerativeAIEmbeddings({
-            apiKey: process.env.GOOGLE_API_KEY,
-            model: "text-embedding-004",
-            taskType: TaskType.RETRIEVAL_DOCUMENT,
+        const embeddings = new OpenAIEmbeddings({
+            apiKey: process.env.OPENAI_API_KEY,
+            model: CONFIG.EMBEDDING_MODEL,
         });
 
         // MODIFIED: Pass the dynamic collectionName to the batch insertion function
