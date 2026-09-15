@@ -140,7 +140,7 @@ export default function Home() {
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
                 <Button asChild size="lg" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                  <Link href="/dashboard">
+                  <Link href="/playground">
                     Get Started <ArrowRight className="w-4 h-4 ml-2" />
                   </Link>
                 </Button>
@@ -418,7 +418,7 @@ export default function Home() {
             transition={{ duration: 0.5, delay: 0.4 }}
           >
             <Button asChild size="lg" className="bg-white text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-200">
-              <Link href="/dashboard">
+              <Link href="/playground">
                 Get Started Free <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
             </Button>
