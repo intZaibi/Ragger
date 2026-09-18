@@ -1,0 +1,7 @@
+export const surface = "bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800";
+export const muted = "text-stone-500 dark:text-zinc-400";
+export const button = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-violet-600 px-5 py-2.5 text-xs font-medium text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-500";
+export const secondary = "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 py-2 text-xs text-stone-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800";
+export const iconButton = "inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-violet-600 disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800";
+export const field = "w-full rounded-lg border border-stone-200 bg-white px-3 py-3 text-sm text-stone-800 outline-none placeholder:text-stone-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-400/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100";
+export const featureIcon = "inline-grid size-11 shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-400/15 dark:text-violet-300";

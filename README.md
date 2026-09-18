@@ -1,141 +1,68 @@
-**DEMO VIDEO** : https://drive.google.com/file/d/1rM6Tj4GO5ixNOHj6lo17SZAzT72Dot9n/view?usp=sharing
+# Marginalia
 
-**🚀 RAG Project with Next.js, Clerk, and Qdrant**
+A small notebook for your documents, notes, and web pages. Add sources, ask questions, and inspect the passages behind each answer.
 
-A Retrieval-Augmented Generation (RAG) application built with Next.js.
-It combines Clerk (authentication), Qdrant (vector database), and Google’s Generative AI (embeddings + LLM responses) to provide a question-answering system that can reason over your own data.
+## Run locally
 
-✨ Features
+Use Node.js 22 or newer.
 
-Source Indexing: Upload files (PDF, CSV), paste raw text, or provide a URL to index content into Qdrant.
+1. Run `npm ci`.
+2. Copy `.env.example` to `.env.local` and fill in your keys.
+3. Start Qdrant with `docker compose up -d`, or use Qdrant Cloud.
+4. Run `npm run dev` and open http://localhost:3000.
 
-Chat Interface: Ask natural language questions about your indexed data.
+Clerk handles sign-in through a modal. Configure your localhost and production origins in your Clerk application. Never expose server keys as NEXT_PUBLIC variables.
 
-Authentication: Secure sign-in and user management powered by Clerk.
+## Environment
 
-Scalable Vector Search: Efficient and scalable similarity search with Qdrant.
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Clerk publishable key.
+- `CLERK_SECRET_KEY`: Clerk secret key.
+- `OPENAI_API_KEY`: embeddings and answer generation.
+- `QDRANT_URL`: http://localhost:6333 locally, or your Qdrant Cloud URL.
+- `QDRANT_API_KEY`: required for Qdrant Cloud, optional locally.
+- `OPENAI_CHAT_MODEL`: optional, defaults to gpt-4o.
 
-🔧 Use Cases
+Embeddings consistently use text-embedding-3-large (3072 dimensions). Do not change the embedding model without reindexing your data.
 
-📝 Personal Knowledge Base – Store and query your notes, articles, and documents.
+## What is included
 
-🤖 Customer Support Bot – Train on product documentation for instant support.
+- Responsive, light/dark interface styled with Tailwind utilities.
+- Real notebook creation, listing, search, opening, and deletion.
+- PDF, TXT, CSV, pasted text, and single public HTTPS-page ingestion.
+- Sources restored from Qdrant when reopening a notebook.
+- Source deletion that removes the indexed data.
+- Source-specific summaries, generated on request.
+- Answers with expandable supporting excerpts, copy, and Markdown export.
+- Conversation recovery in the current browser tab using sessionStorage.
+- Three trial questions per user, tracked in Clerk private metadata.
+- Authentication and full-user-ID ownership checks on notebook APIs.
 
-🔍 Research Assistant – Search and synthesize from a corpus of papers.
+The landing-page conversation is clearly labeled as an illustration. Real notebooks start empty. The interface is inspired by [Aceternity’s spotlight](https://ui.aceternity.com/components/spotlight-new) and card treatments, implemented with Tailwind and the existing Framer Motion dependency.
 
-📚 Educational Tool – Let students query their course materials interactively.
+## Keep it simple
 
-📡 API Structure
-1. /api/index
+There is no billing, public API-key system, embedded chatbot, or shared workspace. Each question is answered independently; previous messages are not supplied as model context. Uploaded source text is processed on the server, sent to OpenAI, and saved in Qdrant. Browser conversation history is not cloud-synced.
 
-Method: POST
+Files are limited to 10 MB and extracted text to 200,000 characters. Scanned PDFs need OCR first. Web imports read one HTML/text page and do not execute JavaScript. They only support public HTTPS hosts with IPv4 addresses. Summaries use up to 100 passages / 40,000 characters and disclose when an excerpt is used.
 
-Handles indexing of new data sources into Qdrant.
-```
-Request Body:
+Trial credits are intended for a small demo, not billing enforcement: Clerk metadata updates are not transactional across concurrent requests. The project owner can replenish a user's `privateMetadata.credits` in Clerk. There is no inactive upgrade button.
 
-{
-  "sourceType": "text | file | url",
-  "text": "optional - raw text",
-  "file": "optional - pdf/csv file",
-  "url": "optional - webpage url"
-}
+## Existing data
 
+Older Ragger collections used only the first 10 characters of a Clerk user ID and did not store reliable ownership. They are left untouched and excluded from the new library. Re-import their original sources into new notebooks after signing in; do not automatically assign legacy collections based on the truncated prefix.
 
-Response:
+## Checks
 
-// Success
-{ "success": true, "message": "Indexing of [sourceName] done." }
+- `npm run lint`
+- `npm test`
+- `npm run build`
 
-// Error
-{ "error": "Bad Request / Internal Server Error" }
-```
-2. /api/chat
+Tests cover collection ownership, notebook name validation, and public-URL restrictions. Live AI tests require configured Clerk, OpenAI, and Qdrant services.
 
-Method: POST
+## Small future additions
 
-Retrieves relevant context from Qdrant and generates an AI-powered answer.
-```
-Request Body:
+1. Rename a notebook without changing its underlying collection.
+2. Cloud conversation history, if cross-device access becomes useful.
+3. OCR for scanned PDFs, only if those are a common input.
 
-{
-  "userQuery": "What is retrieval-augmented generation?"
-}
-
-
-Response:
-
-{
-  "response": "The generated answer.",
-  "sources": [
-    { "source": "pasted-text", "page_content": "..." }
-  ]
-}
-```
-⚙️ Getting Started
-📌 Prerequisites
-
-Node.js 18+
-
-npm / yarn
-
-Clerk Account
-
-Qdrant Cloud Account
-
-Google AI Studio API Key
-
-📥 Installation
-```
-git clone https://github.com/intZaibi/RAG-Application.git
-cd RAG-Application
-npm install
-```
-
-For Qdrant DB in docker
-```
-docker compose up -d
-```
-
-🔑 Environment Variables
-
-Create .env.local in the root directory:
-```
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-
-# Google Generative AI
-GOOGLE_API_KEY=AIzaSy...
-
-# Qdrant Vector Database
-QDRANT_URL=https://...
-QDRANT_API_KEY=...
-
-# For Qdrant DB in docker
-QDRANT_URL=http://localhost:6333
-
-
-# Optional
-OAUTH_URL=...
-```
-
-Get your keys from:
-
-Clerk → Dashboard → API Keys
-
-Google AI → AI Studio → Get API Key
-
-Qdrant → Cloud Dashboard
-
-▶️ Running the App
-```
-npm run dev
-```
-
-Then open: http://localhost:3000
-
-🔐 Authentication
-
-Clerk is used for secure authentication & user management.
-Make sure to configure callback URLs and settings in the Clerk Dashboard according to your deployment environment.
+Avoid adding billing, teams, or a complex dashboard until the core notebook workflow needs them.

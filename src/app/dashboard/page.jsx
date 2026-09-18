@@ -1,154 +1,54 @@
-'use client';
+"use client";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowRight, BookOpen, Plus, Search, Trash2, Loader2, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import AuthGate from "@/components/AuthGate";
+import Modal from "@/components/Modal";
+import { api, jsonBody } from "@/lib/api";
+import { button, secondary, iconButton, field, featureIcon, surface } from "@/lib/styles";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Copy, Key, Plus, Trash2, Wrench } from "lucide-react";
-import { useState } from "react";
-import { Toaster, toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
-
-
-// Mock data - replace with API call
-const mockApiKeys = [
-    { id: '1', key: 'idxr_live_xxxxxxxxxxxxxxxxxxxx1234', createdAt: 'Aug 19, 2025' },
-    { id: '2', key: 'idxr_live_xxxxxxxxxxxxxxxxxxxx5678', createdAt: 'Aug 18, 2025' },
-];
-
-export default function Dashboard() {
-    const [apiKeys, setApiKeys] = useState(mockApiKeys);
-    const [newKeyName, setNewKeyName] = useState('');
-
-    const handleCreateKey = () => {
-        // In a real app, this would be an API call to your backend
-        const newKey = {
-            id: Math.random().toString(),
-            key: `idxr_live_${Math.random().toString(36).substring(2)}`,
-            createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        };
-        setApiKeys([newKey, ...apiKeys]);
-        setNewKeyName('');
-        toast.success("New API key created!");
-    };
-
-    const handleDeleteKey = (id) => {
-        // In a real app, this would be an API call
-        setApiKeys(apiKeys.filter(key => key.id !== id));
-        toast.info("API key deleted.");
-    };
-    
-    const getScriptTag = (apiKey) => {
-        return `<script src="https://your-domain.com/script.js" data-api-key="${apiKey}" defer></script>`;
-    }
-
-    const copyToClipboard = (text) => {
-        navigator.clipboard.writeText(text);
-        toast.success("Copied to clipboard!");
-    }
-
-    return (
-        <div className="min-h-dvh overflow-y-hidden bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300 relative">
-            <Toaster richColors position="bottom-right" />
-            
-            {/* Main content container */}
-            <div className="container mx-auto max-w-5xl py-8 px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between mb-8">
-                    <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-                </div>
-                
-                <Card className="mb-8 border-gray-200 dark:border-gray-700 shadow-md dark:shadow-gray-800/20">
-                    <CardHeader>
-                        <CardTitle className="text-gray-900 dark:text-gray-100">Create New API Key</CardTitle>
-                        <CardDescription className="text-gray-600 dark:text-gray-400">Generate a new key to index a website.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                            <Input 
-                                placeholder="e.g., My Personal Blog" 
-                                value={newKeyName}
-                                onChange={(e) => setNewKeyName(e.target.value)}
-                                className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                            />
-                            <Button onClick={handleCreateKey} className="sm:w-auto w-full bg-indigo-600 hover:bg-indigo-700 text-white dark:bg-indigo-700 dark:hover:bg-indigo-600">
-                                <Plus className="w-4 h-4 mr-2" /> Create Key
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-gray-200 dark:border-gray-700 shadow-md dark:shadow-gray-800/20">
-                    <CardHeader>
-                        <CardTitle className="text-gray-900 dark:text-gray-100">Your API Keys</CardTitle>
-                        <CardDescription className="text-gray-600 dark:text-gray-400">Manage your keys and embed the script on your website.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="text-gray-900 dark:text-gray-100">Key</TableHead>
-                                    <TableHead className="hidden sm:table-cell text-gray-900 dark:text-gray-100">Created</TableHead>
-                                    <TableHead className="text-gray-900 dark:text-gray-100">Script</TableHead>
-                                    <TableHead className="text-right text-gray-900 dark:text-gray-100">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {apiKeys.map((apiKey) => (
-                                    <TableRow key={apiKey.id} className="border-gray-200 dark:border-gray-700">
-                                        <TableCell className="font-mono">
-                                            <div className="flex items-center gap-2">
-                                                <Key className="w-4 h-4 text-gray-400" />
-                                                <span className="text-gray-800 dark:text-gray-200">{apiKey.key.substring(0, 11)}...{apiKey.key.slice(-4)}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="hidden sm:table-cell text-gray-600 dark:text-gray-400">{apiKey.createdAt}</TableCell>
-                                        <TableCell>
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm" 
-                                                onClick={() => copyToClipboard(getScriptTag(apiKey.key))}
-                                                className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                                            >
-                                                <Copy className="w-3 h-3 mr-2" /> Copy Script
-                                            </Button>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                onClick={() => handleDeleteKey(apiKey.id)}
-                                                className="hover:bg-gray-100 dark:hover:bg-gray-800"
-                                            >
-                                                <Trash2 className="w-4 h-4 text-red-500 dark:text-red-400" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Under Construction Overlay */}
-            <AnimatePresence>
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-gray-900/30 backdrop-blur-md flex flex-col items-center justify-center z-10 p-4"
-                >
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="text-center"
-                    >
-                        <h2 className="text-3xl font-bold text-white mb-2">Under Construction</h2>
-                        <p className="text-gray-300">This page is currently being developed. Please check back later!</p>
-                    </motion.div>
-                </motion.div>
-            </AnimatePresence>
-        </div>
-    );
+function Notebooks() {
+  const router = useRouter();
+  const [notebooks, setNotebooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [create, setCreate] = useState(false);
+  const [name, setName] = useState("");
+  const [deleting, setDeleting] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try { setNotebooks((await api("/api/notebooks")).notebooks); }
+    catch (error) { setError(error.message); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  async function createNotebook(e) {
+    e.preventDefault(); if (busy || !name.trim()) return; setBusy(true);
+    try { const data = await api("/api/createCollection", jsonBody({ bookName: name.trim() })); router.push("/playground?notebook=" + encodeURIComponent(data.collectionName)); }
+    catch (error) { toast.error(error.message); }
+    finally { setBusy(false); }
+  }
+  async function deleteNotebook() {
+    setBusy(true);
+    try {
+      await api("/api/notebooks", jsonBody({ collectionName: deleting.id }, "DELETE"));
+      setNotebooks(prev => prev.filter(n => n.id !== deleting.id));
+      setDeleting(null); toast.success("Notebook deleted.");
+    } catch (error) { toast.error(error.message); }
+    finally { setBusy(false); }
+  }
+  const visible = notebooks.filter(n => n.name.toLowerCase().includes(search.toLowerCase()));
+  return <div className="mx-auto max-w-6xl px-6 py-12 sm:px-10">
+    <div className="mb-9 flex flex-col justify-between gap-5 sm:flex-row sm:items-center"><div><span className="text-[9px] font-semibold tracking-[.18em] text-stone-500">YOUR PERSONAL LIBRARY</span><h1 className="mb-3 mt-3 font-serif text-5xl tracking-tight">My notebooks<span className="text-violet-500">.</span></h1><p className="text-sm text-stone-500 dark:text-zinc-400">A home for your material. A starting point for your next idea.</p></div><button className={button} onClick={() => setCreate(true)}><Plus size={16} /> New notebook</button></div>
+    <div className="mb-6 flex items-center justify-between gap-4"><div className="relative w-full max-w-xs"><Search className="absolute left-3 top-3.5 text-stone-400" size={16} /><input className={field + " pl-10"} placeholder="Find a notebook…" aria-label="Search notebooks" value={search} onChange={e => setSearch(e.target.value)} /></div><span className="shrink-0 text-xs text-stone-500">{notebooks.length} notebook{notebooks.length !== 1 ? "s" : ""}</span></div>
+    {loading ? <div className="flex justify-center gap-3 py-24 text-stone-500"><Loader2 size={18} className="animate-spin" /> Gathering your notebooks…</div> : error ? <div role="alert" className="flex items-center justify-between gap-5 rounded-xl border border-red-200 p-5 text-sm dark:border-red-900"><p>{error}</p><button className={secondary} onClick={load}>Try again</button></div> : visible.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{visible.map(n => <article key={n.id} className={surface + " relative rounded-xl transition hover:-translate-y-1 hover:shadow-lg hover:shadow-violet-950/5 motion-reduce:transform-none"}><Link href={"/playground?notebook=" + encodeURIComponent(n.id)} className="block p-6"><span className={featureIcon}><BookOpen size={23} strokeWidth={1.5} /></span><h2 className="mb-2 mt-7 break-words font-serif text-2xl capitalize">{n.name}</h2><p className="text-xs text-stone-500">{n.chunks ? n.chunks + " indexed passages" : "Ready for your first source"}</p><div className="mt-6 flex items-center justify-between text-xs text-violet-600 dark:text-violet-300"><span>Open notebook</span><ArrowRight size={16} /></div></Link><button className={iconButton + " absolute right-4 top-4"} aria-label={"Delete " + n.name} onClick={() => setDeleting(n)}><Trash2 size={15} /></button></article>)}</div> : <div className="rounded-xl border border-dashed border-stone-300 px-6 py-16 text-center dark:border-zinc-700"><span className={featureIcon}><BookOpen size={22} /></span><h2 className="mt-6 font-serif text-3xl">{search ? "No notebooks found." : "Good ideas start with a blank page."}</h2><p className="mx-auto mb-6 mt-3 max-w-sm text-sm leading-7 text-stone-500">{search ? "Try a different name or clear your search." : "Create your first notebook, add something worth reading, and start a conversation."}</p><button className={secondary} onClick={() => search ? setSearch("") : setCreate(true)}>{search ? "Clear search" : "Create a notebook"}<ArrowRight size={15} /></button></div>}
+    <div className={surface + " mt-10 flex items-start gap-4 rounded-xl p-6"}><span className={featureIcon}><Sparkles size={20} /></span><div><h2 className="text-sm font-medium">A small tip for better answers</h2><p className="mt-2 text-xs leading-6 text-stone-500 dark:text-zinc-400">Keep related sources together. A notebook for a course, a project, or a topic gives your questions the right context.</p></div></div>
+    <Modal open={create} onClose={() => setCreate(false)} title="A fresh notebook" description="Give your ideas a home. You can add sources in the next step." busy={busy}><form onSubmit={createNotebook}><label htmlFor="notebook-name" className="mb-2 block text-xs">Notebook name</label><input id="notebook-name" autoFocus className={field} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Ideas for a slower life" maxLength={80} required /><div className="mt-6 flex justify-end gap-3"><button type="button" className={secondary} onClick={() => setCreate(false)} disabled={busy}>Cancel</button><button className={button} disabled={busy || !name.trim()}>{busy ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />} Create notebook</button></div></form></Modal>
+    <Modal open={Boolean(deleting)} onClose={() => setDeleting(null)} title="Delete this notebook?" description={'“' + (deleting?.name || "") + '” and all of its indexed sources will be permanently deleted.'} busy={busy}><div className="flex justify-end gap-3"><button className={secondary} disabled={busy} onClick={() => setDeleting(null)}>Keep notebook</button><button className={button + " bg-red-700! hover:bg-red-800!"} disabled={busy} onClick={deleteNotebook}>{busy && <Loader2 size={15} className="animate-spin" />} Delete notebook</button></div></Modal>
+  </div>;
 }
+export default function Dashboard() { return <AuthGate><Notebooks /></AuthGate>; }

@@ -1,18 +1,4 @@
-import Link from 'next/link'
-import React from 'react'
-
+import Link from "next/link";
 export default function Footer() {
-  return (
-    <footer className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="py-6 text-center">
-          <p className="text-sm">© 2025 Ragger. All rights reserved. | Developed by {" "} 
-            <Link target="_blank" href="https://shahzaib-ali-portfolio.netlify.app" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors">
-            Shahzaib Ali
-            </Link>
-          </p>
-        </div>
-      </div>
-    </footer>
-  )
+  return <footer className="border-t border-stone-200 text-[10px] text-stone-500 dark:border-zinc-800 dark:text-zinc-400 [&>div]:mx-auto [&>div]:flex [&>div]:max-w-7xl [&>div]:justify-between [&>div]:gap-3 [&>div]:px-10 [&>div]:py-6 max-sm:[&>div]:flex-col max-sm:[&>div]:items-center [&_a]:text-stone-700 dark:[&_a]:text-zinc-200"><div><span>Less searching. More understanding.</span><span>Made with curiosity by <Link href="https://shahzaib-ali-portfolio.netlify.app" target="_blank" rel="noreferrer">Shahzaib Ali ↗</Link></span></div></footer>;
 }
