@@ -1,7 +1,7 @@
 import { clerkMiddleware } from '@clerk/nextjs/server';
 
-export default clerkMiddleware({
-  publicRoutes: ["/", "/about", "/sign-in", "/sign-up"],
+export default clerkMiddleware(undefined, {
+  clockSkewInMs: 120000, // 2-minute tolerance for system clock skew in development
 });
 
 export const config = {

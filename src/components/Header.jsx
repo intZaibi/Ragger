@@ -119,7 +119,7 @@ function Header() {
                 variant="ghost"
                 className="text-gray-600 dark:text-gray-300"
               >
-                <SignInButton className="flex items-center gap-1">
+                <SignInButton className="flex items-center gap-1 cursor-pointer">
                   <span>
                     <LogIn className="h-4 w-4" />
                     Login

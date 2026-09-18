@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { NextResponse } from "next/server";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { auth } from "@clerk/nextjs/server";
@@ -22,7 +21,6 @@ export async function POST(req) {
     try {
         // 1. Authenticate the user using Clerk
         const { userId } = await auth();
-        console.log(userId);
         
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -42,6 +40,7 @@ export async function POST(req) {
         const client = new QdrantClient({
             url: process.env.QDRANT_URL,
             apiKey: process.env.QDRANT_API_KEY,
+            checkCompatibility: false,
         });
 
         // 5. Create the new collection in Qdrant
@@ -62,16 +61,18 @@ export async function POST(req) {
 
     } catch (error) {
         console.error("Error creating collection:", error);
+        const errorMessage = error?.message || error?.data?.status?.error || "Failed to create the collection.";
+        
         // Check for specific Qdrant errors, e.g., collection already exists
-        if (error.message.includes("already exists")) {
+        if (errorMessage.includes("already exists")) {
             return NextResponse.json(
                 { error: "A collection with this name already exists." },
                 { status: 409 } // 409 Conflict
             );
         }
         return NextResponse.json(
-            { error: "Failed to create the collection." },
-            { status: 500 }
+            { error: errorMessage },
+            { status: error?.status || 500 }
         );
     }
 }
